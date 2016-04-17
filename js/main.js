@@ -256,13 +256,12 @@ function initMarker(feature) {
 
 
 /*
- * Returns the city name when present in the hash of the current URI;
- * otherwise the default city name;
+ * Returns the city ID from the hash of the current URI.
  */
-function getCityName() {
+function getHashCity() {
     var hash = decodeURIComponent(window.location.hash);
     if (hash === undefined || hash === "") {
-        return DEFAULT_CITY;
+        return '';
     } else {
         hash = hash.toLowerCase();
         return hash.substring(1, hash.length);
@@ -273,14 +272,29 @@ function getCityName() {
 /*
  * Updates the URL hash in the browser.
  */
-function updateUrlHash(cityName) {
-    if (cityName === undefined) {
+function updateUrlHash(newCity) {
+    if (newCity === undefined) {
         throw "City name is undefined.";
     }
-    if (history.pushState) {
-        history.pushState(null, null, "#" + cityName);
+    currentCity = getHashCity();
+    if (newCity === currentCity) {
+        return;
+    } else if (!currentCity) {
+        // No city was selected previously, replace history entry to prevent
+        // infinite back-button loop.
+        if (history.replaceState) {
+            history.replaceState(null, null, "#" + newCity);
+        } else {
+            // See http://stackoverflow.com/a/6945614/857390
+            window.location.replace(('' + window.location).split('#')[0] +
+                                    '#' + newCity);
+        }
     } else {
-        window.location.hash = cityName;
+        if (history.pushState) {
+            history.pushState(null, null, "#" + newCity);
+        } else {
+            window.location.hash = newCity;
+        }
     }
 }
 
@@ -320,6 +334,7 @@ function cityIdToLabel(s) {
  * `city` is the city ID.
  */
 function setCity(city) {
+    city = city || DEFAULT_CITY;
     var filename = 'cities/' + city + '.json';
     $.getJSON(filename, function(json) {
         positionMap(json.metadata.map_initialization);
@@ -367,7 +382,7 @@ function loadCityIDs() {
 
 
 $(window).on('hashchange',function() {
-    setCity(getCityName());
+    setCity(getHashCity());
 });
 
 
@@ -406,7 +421,7 @@ $(document).ready(function() {
         dropDownCitySelection.select2('open');
         dropDownCitySelection.select2('close');
 
-        setCity(getCityName());
+        setCity(getHashCity());
     });
 
     // Stop map movement by mouse events in legend.
